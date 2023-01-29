@@ -1,0 +1,575 @@
+openapi: 3.0.3
+info:
+  title: Traffic data concentrator - OpenAPI 3.0
+  description: >-
+    This is a development Swagger-supported server based on the OpenAPI 3.0
+    specification. You can find out more about Swagger at 
+    [https://swagger.io](https://swagger.io).
+  termsOfService: https://swagger.io/terms/
+  contact:
+    email: d3e@fd.cvut.cz
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 0.9.4
+externalDocs:
+  description: Find out more about D3E project
+  url: https://d3e.fd.cvut.cz/
+servers:
+  - url: https://bolzano.fd.cvut.cz:8080/api/v1
+    description: Testing server
+  - url: https://d3e.fd.cvut.cz/datastore/api/v1
+    description: Live server, not up and running yet.
+tags:
+  - name: scala
+    description: Traffic data provided by SCALA traffic centrals
+    externalDocs:
+      description: Find out more
+      url: https://k611-410h.fd.cvut.cz:8080/api/docs/scala
+  - name: camea
+    description: Anonymized traffic data provided by CAMEA detectors
+    externalDocs:
+      description: Find out more
+      url: https://k611-410h.fd.cvut.cz:8080/api/docs/camea
+  - name: golemio
+    description: >-
+      Information about public transport movements collected from the Golemio platform
+    externalDocs:
+      description: Find out more
+      url: https://k611-410h.fd.cvut.cz:8080/api/docs/golemio
+  - name: strategic
+    description: >-
+      Traffic data provided by strategic traffic detectors of the first 
+      (Trafficam) and second (CollectR) generations. Prone to irregular outages, 
+      contains a superset of data provided by CAMEA detectors.
+    externalDocs:
+      description: Find out more
+      url: https://k611-410h.fd.cvut.cz:8080/api/docs/strategic
+paths:
+  /scala/endpoints:
+    get:
+      tags:
+        - scala
+      summary: Retrieve intersection and detector ids 
+      description: >-
+        No parameters. Returns information about all intersections and their 
+        detectors that are currently hosted by the data store.
+      operationId: scalaGetEndpoints
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - id
+                  properties:
+                    id:
+                      type: string
+                      description: >-
+                        Identifier of an intersection, in SCALA notation, i.e. 
+                        a string "FD<<district>><<number>>".
+                      example:
+                        - "FD5355"
+                    detectors:
+                      type: array
+                      description: >-
+                        List of detector names for the intersection. Detectors 
+                        bear both SCALA id and traffic engineering mapping id,
+                        represented by a a string "<<scala_id>>_<<traffic_map_id>>"
+                      items:
+                        type: string
+                        example: 
+                          - "D1_DVA"
+                          - "D2_DVB"
+                          - "D3_DVA'"
+                          - "D4_DVB'"
+            application/xml:
+              schema:
+                type: object
+                xml:
+                  name: endpoints
+                properties:
+                  intersection:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 
+                            - "FD5355"
+                          xml:
+                            attribute: true
+                        detector:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                xml:
+                                  attribute: true
+                                example:
+                                  - "D1_DVA"
+                                  # - "D2_DVB"
+                                  # - "D3_DVA'"
+                                  # - "D4_DVB'"
+        '400':
+          description: Invalid tag value
+      security:
+        - api_key:
+          - read:endpoints
+
+  /scala/lastData:
+    get:
+      tags:
+        - scala
+      summary: Retrieve last data from SCALA detectors
+      description: Multiple status values can be provided with comma separated strings
+      operationId: scalaGetLastData
+      parameters:
+        - name: iid
+          in: query
+          description: Intersection IDs to retrieve data from
+          required: false
+          explode: true
+          schema:
+            type: array
+            items: 
+              type: string
+            default: []
+            example: ['FD5355','FD5315']
+        - name: updatedSince
+          in: query
+          description: Limit results to the ones updated after (timestamp greater than)
+          required: true
+          explode: true
+          schema:
+            type: string
+            example: 
+              - "2023-05-12T14:30:21.000Z"
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Array of intersection records
+                items:
+                  required:
+                    - id
+                    - detectors
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: Intersection id
+                      example: ["FD5355"]
+                    timestamp:
+                      type: string
+                      description: Server time when this record has been written into the database.
+                      example: ["2022-11-10 09:15:20"]
+                    detectors:
+                      type: array
+                      items:
+                        required:
+                          - id
+                          - class
+                          - data
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            description: Detector ID, contains both numeric ID from SCALA and traffic engineering ID from intersection plans, separated by '_'
+                            example: ["D1_DVA"]
+                          class:
+                            type: string
+                            description: Detector class
+                            example: ["ig", "area"]
+                            enum:
+                              - ig
+                              - area
+                          data:
+                            type: object
+                            required:
+                              - cnt
+                              - spd
+                              - occ
+                            properties:
+                              cnt:
+                                type: integer
+                              spd:
+                                type: integer
+                              occ:
+                                type: integer
+                              time_start:
+                                type: string
+                                description: Start of the measurement period as reported by SCALA.
+                                example: ["2022-11-10 09:12:00"]
+                              time_stop:
+                                type: string
+                                description: End of the measurement period as reported by SCALA.
+                                example: ["2022-11-10 09:13:30"]
+
+        '400':
+          description: Invalid status value
+      security:
+        - api_key:
+            - read:lastData
+  /camea/endpoints:
+    get:
+      tags:
+        - camea
+      summary: Retrieve detector ids
+      description: >-
+        No parameters. Returns information about all Camea detectors that are 
+        actually stored in our data store.
+      operationId: cameaGetEndpoints
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  required:
+                    - detector_id
+                  type: object
+                  properties:
+                    detector_id:
+                      type: string
+                      example: ["R5355J1"]
+        '400':
+          description: Invalid tag value
+      security:
+        - api_key:
+          - read:endpoints
+  /camea/lastData:
+    get:
+      tags:
+        - camea
+      summary: Retrieve last data from CAMEA detectors
+      description: >-
+        Returns data received since the given timestamp for the given set 
+        of detector names (or data of all available detectors).
+      operationId: cameaGetLastData
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  required:
+                    - detector_id
+                  type: object
+                  properties:
+                    detector_id:
+                      type: string
+                      example: ["R5355J1"]
+        '400':
+          description: Invalid tag value
+      security:
+        - api_key:
+          - read:lastData
+
+  /golemio/lines:
+    get:
+      tags:
+        - golemio
+      summary: Retrieve list of public transport lines covered by golemio
+      operationId: golemioGetLines
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  example: [ "1", "20", "59", "330" ]
+
+        '400':
+          description: Invalid tag value
+      security:
+        - api_key:
+          - read:endpoints
+
+  /golemio/lastData:
+    get:
+      tags:
+        - golemio
+      summary: Get last data uploaded from the Golemio platform
+      operationId: golemioGetLastData
+      parameters:
+        - name: lineid
+          in: query
+          description: Line IDs (PT schedule numbers) to retrieve data from
+          required: false
+          explode: true
+          schema:
+            type: array
+            items: 
+              type: string
+            default: []
+            example: [ "18", "59" ]
+        - name: updatedSince
+          in: query
+          description: Limit results to the ones updated after (timestamp greater than)
+          required: true
+          explode: true
+          schema:
+            type: string
+            example: 
+              - "2023-05-12T14:30:21.000Z"
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  required:
+                    - lineid
+                  type: object
+                  properties:
+                    lineid:
+                      type: string
+                      description: >-
+                        Identifier of a PT line (numeric / alphanumeric).
+                      example:
+                        - "18"
+                        - "N31"
+                    vehicles:
+                      type: object
+                      description: >-
+                        Position of the giben vehicle in GPS (WGS84) coordinates
+                      properties:
+                        vehicleno:
+                          type: string
+                          description: >-
+                            Unique identifier of the PT vehicle (chasis number, registration number, license plate)
+                          example: 
+                            - "3214"
+                            - "7256"
+                        latitude:
+                          type: number
+                          description: >-
+                            Numeric WGS84 latitude of the vehicle
+                          example: 
+                            - 50.073658
+                            - 50.1003562652
+                        longitude:
+                          type: number
+                          description: >-
+                            Numeric WGS84 longitude of the vehicle
+                          example:
+                            - 14.418540
+                            - 14.3885401125
+                        time:
+                          type: string
+                          description: >-
+                            Timestamp of the position report.
+                          example:
+                            - "2022-11-10 09:12:00"
+
+        '400':
+          description: Invalid tag value
+      security:
+        - api_key:
+          - read:endpoints
+
+  /strategic/endpoints:
+    get:
+      tags:
+        - strategic
+      summary: Retrieve strategic detector ids 
+      description: >-
+        No parameters. Returns information about all intersections and their 
+        detectors that are currently hosted by the data store.
+      operationId: strategicGetEndpoints
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  required:
+                    - id
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: >-
+                        Identifier of an intersection, in SCALA notation, i.e. 
+                        a string "FD<<district>><<number>>".
+                      example:
+                        - "FD5355"
+                    detectors:
+                      type: array
+                      description: >-
+                        List of detector names for the intersection. Detectors 
+                        bear both SCALA id and traffic engineering mapping id,
+                        represented by a a string "<<scala_id>>_<<traffic_map_id>>"
+                      items:
+                        type: string
+                        example: 
+                          - "D1_DVA"
+                          - "D2_DVB"
+                          - "D3_DVA'"
+                          - "D4_DVB'"
+            application/xml:
+              schema:
+                type: object
+                xml:
+                  name: endpoints
+                properties:
+                  intersection:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example:
+                            - "FD5355"
+                          xml:
+                            attribute: true
+                        detector:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                xml:
+                                  attribute: true
+                                example:
+                                  - "D1_DVA"
+                                  # - "D2_DVB"
+                                  # - "D3_DVA'"
+                                  # - "D4_DVB'"
+        '400':
+          description: Invalid tag value
+      security:
+        - api_key:
+          - read:endpoints
+
+  /strategic/lastData:
+    get:
+      tags:
+        - strategic
+      summary: Retrieve last data from strategic detectors
+      description: Multiple status values can be provided with comma separated strings
+      operationId: strategicGetLastData
+      parameters:
+        - name: iid
+          in: query
+          description: Intersection IDs to retrieve data from
+          required: false
+          explode: true
+          schema:
+            type: array
+            items: 
+              type: string
+            default: []
+            example: [ "FD5355", "FD5315" ]
+        - name: updatedSince
+          in: query
+          description: Limit results to the ones updated after (timestamp greater than)
+          required: true
+          explode: true
+          schema:
+            type: string
+            example: 
+              - "2023-05-12T14:30:21.000Z"
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Array of intersection records
+                items:
+                  required:
+                    - id
+                    - detectors
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: Intersection id
+                      example: [ 'FD5355' ]
+                    timestamp:
+                      type: string
+                      description: Server time when this record has been written into the database.
+                      example: [ "2022-11-10 09:15:20" ]
+                    detectors:
+                      type: array
+                      items:
+                        required:
+                          - id
+                          - class
+                          - data
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            description: Detector ID, contains both numeric ID from SCALA and traffic engineering ID from intersection plans, separated by '_'
+                            example: [ 'D1_DVA' ]
+                          class:
+                            type: string
+                            description: Detector class
+                            example: [ 'ig', 'area' ]
+                            enum:
+                              - ig
+                              - area
+                          data:
+                            type: object
+                            required:
+                              - cnt
+                              - spd
+                              - occ
+                            properties:
+                              cnt:
+                                type: integer
+                              spd:
+                                type: integer
+                              occ:
+                                type: integer
+                              time_start:
+                                type: string
+                                description: Start of the measurement period as reported by SCALA.
+                                example: [ "2022-11-10 09:12:00" ]
+                              time_stop:
+                                type: string
+                                description: End of the measurement period as reported by SCALA.
+                                example: [ "2022-11-10 09:13:30" ]
+
+        '400':
+          description: Invalid status value
+      security:
+        - api_key:
+            - read:lastData
+
+components:
+  securitySchemes:
+    api_key:                # arbitrary name for the security scheme
+      type: apiKey          # defines the scheme type, can be "apiKey", "http", "oauth2" or "openIdConnect"
+      in: header            # can be "header", "query" or "cookie"
+      name: X-Access-Token  # name of the header, query parameter or cookie
+security:
+  - api_key: []
+  

@@ -1,0 +1,522 @@
+openapi: 3.0.3
+info:
+  title: Traffic data concentrator - OpenAPI 3.0
+  description: "This is a development Swagger-supported server based on the OpenAPI\
+    \ 3.0 specification. You can find out more about Swagger at  [https://swagger.io](https://swagger.io)."
+  termsOfService: https://swagger.io/terms/
+  contact:
+    email: d3e@fd.cvut.cz
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 0.9.4
+externalDocs:
+  description: Find out more about D3E project
+  url: https://d3e.fd.cvut.cz/
+servers:
+- url: https://bolzano.fd.cvut.cz:8080/api/v1
+  description: Testing server
+- url: https://d3e.fd.cvut.cz/datastore/api/v1
+  description: "Live server, not up and running yet."
+security:
+- api_key: []
+tags:
+- name: scala
+  description: Traffic data provided by SCALA traffic centrals
+  externalDocs:
+    description: Find out more
+    url: https://k611-410h.fd.cvut.cz:8080/api/docs/scala
+- name: camea
+  description: Anonymized traffic data provided by CAMEA detectors
+  externalDocs:
+    description: Find out more
+    url: https://k611-410h.fd.cvut.cz:8080/api/docs/camea
+- name: golemio
+  description: Information about public transport movements collected from the Golemio
+    platform
+  externalDocs:
+    description: Find out more
+    url: https://k611-410h.fd.cvut.cz:8080/api/docs/golemio
+- name: strategic
+  description: "Traffic data provided by strategic traffic detectors of the first\
+    \  (Trafficam) and second (CollectR) generations. Prone to irregular outages,\
+    \  contains a superset of data provided by CAMEA detectors."
+  externalDocs:
+    description: Find out more
+    url: https://k611-410h.fd.cvut.cz:8080/api/docs/strategic
+paths:
+  /scala/endpoints:
+    get:
+      tags:
+      - scala
+      summary: Retrieve intersection and detector ids
+      description: No parameters. Returns information about all intersections and
+        their  detectors that are currently hosted by the data store.
+      operationId: scala_get_endpoints
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/inline_response_200'
+                x-content-type: application/json
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/inline_response_200_1'
+        "400":
+          description: Invalid tag value
+      security:
+      - api_key:
+        - read:endpoints
+      x-openapi-router-controller: swagger_server.controllers.scala_controller
+  /scala/lastData:
+    get:
+      tags:
+      - scala
+      summary: Retrieve last data from SCALA detectors
+      description: Multiple status values can be provided with comma separated strings
+      operationId: scala_get_last_data
+      parameters:
+      - name: iid
+        in: query
+        description: Intersection IDs to retrieve data from
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: array
+          example:
+          - FD5355
+          - FD5315
+          items:
+            type: string
+          default: []
+      - name: updatedSince
+        in: query
+        description: Limit results to the ones updated after (timestamp greater than)
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+          example: "[\"2023-05-12T14:30:21.000Z\"]"
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Array of intersection records
+                items:
+                  $ref: '#/components/schemas/inline_response_200_2'
+                x-content-type: application/json
+        "400":
+          description: Invalid status value
+      security:
+      - api_key:
+        - read:lastData
+      x-openapi-router-controller: swagger_server.controllers.scala_controller
+  /camea/endpoints:
+    get:
+      tags:
+      - camea
+      summary: Retrieve detector ids
+      description: No parameters. Returns information about all Camea detectors that
+        are  actually stored in our data store.
+      operationId: camea_get_endpoints
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/inline_response_200_3'
+                x-content-type: application/json
+        "400":
+          description: Invalid tag value
+      security:
+      - api_key:
+        - read:endpoints
+      x-openapi-router-controller: swagger_server.controllers.camea_controller
+  /camea/lastData:
+    get:
+      tags:
+      - camea
+      summary: Retrieve last data from CAMEA detectors
+      description: Returns data received since the given timestamp for the given set  of
+        detector names (or data of all available detectors).
+      operationId: camea_get_last_data
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/inline_response_200_3'
+                x-content-type: application/json
+        "400":
+          description: Invalid tag value
+      security:
+      - api_key:
+        - read:lastData
+      x-openapi-router-controller: swagger_server.controllers.camea_controller
+  /golemio/lines:
+    get:
+      tags:
+      - golemio
+      summary: Retrieve list of public transport lines covered by golemio
+      operationId: golemio_get_lines
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  example: "[\"1\",\"20\",\"59\",\"330\"]"
+                x-content-type: application/json
+        "400":
+          description: Invalid tag value
+      security:
+      - api_key:
+        - read:endpoints
+      x-openapi-router-controller: swagger_server.controllers.golemio_controller
+  /golemio/lastData:
+    get:
+      tags:
+      - golemio
+      summary: Get last data uploaded from the Golemio platform
+      operationId: golemio_get_last_data
+      parameters:
+      - name: lineid
+        in: query
+        description: Line IDs (PT schedule numbers) to retrieve data from
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: array
+          example:
+          - "18"
+          - "59"
+          items:
+            type: string
+          default: []
+      - name: updatedSince
+        in: query
+        description: Limit results to the ones updated after (timestamp greater than)
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+          example: "[\"2023-05-12T14:30:21.000Z\"]"
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/inline_response_200_4'
+                x-content-type: application/json
+        "400":
+          description: Invalid tag value
+      security:
+      - api_key:
+        - read:endpoints
+      x-openapi-router-controller: swagger_server.controllers.golemio_controller
+  /strategic/endpoints:
+    get:
+      tags:
+      - strategic
+      summary: Retrieve strategic detector ids
+      description: No parameters. Returns information about all intersections and
+        their  detectors that are currently hosted by the data store.
+      operationId: strategic_get_endpoints
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/inline_response_200'
+                x-content-type: application/json
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/inline_response_200_1'
+        "400":
+          description: Invalid tag value
+      security:
+      - api_key:
+        - read:endpoints
+      x-openapi-router-controller: swagger_server.controllers.strategic_controller
+  /strategic/lastData:
+    get:
+      tags:
+      - strategic
+      summary: Retrieve last data from strategic detectors
+      description: Multiple status values can be provided with comma separated strings
+      operationId: strategic_get_last_data
+      parameters:
+      - name: iid
+        in: query
+        description: Intersection IDs to retrieve data from
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: array
+          example:
+          - FD5355
+          - FD5315
+          items:
+            type: string
+          default: []
+      - name: updatedSince
+        in: query
+        description: Limit results to the ones updated after (timestamp greater than)
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+          example: "[\"2023-05-12T14:30:21.000Z\"]"
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Array of intersection records
+                items:
+                  $ref: '#/components/schemas/inline_response_200_2'
+                x-content-type: application/json
+        "400":
+          description: Invalid status value
+      security:
+      - api_key:
+        - read:lastData
+      x-openapi-router-controller: swagger_server.controllers.strategic_controller
+components:
+  schemas:
+    golemiolastData_vehicles:
+      type: object
+      properties:
+        vehicleno:
+          type: string
+          description: "Unique identifier of the PT vehicle (chasis number, registration\
+            \ number, license plate)"
+          example: "[\"3214\",\"7256\"]"
+        latitude:
+          type: number
+          description: Numeric WGS84 latitude of the vehicle
+        longitude:
+          type: number
+          description: Numeric WGS84 longitude of the vehicle
+        time:
+          type: string
+          description: Timestamp of the position report.
+          example: "[\"2022-11-10 09:12:00\"]"
+      description: Position of the giben vehicle in GPS (WGS84) coordinates
+      example:
+        vehicleno: "[\"3214\",\"7256\"]"
+        latitude: 0.80082819046101150206595775671303272247314453125
+        time: "[\"2022-11-10 09:12:00\"]"
+        longitude: 6.02745618307040320615897144307382404804229736328125
+    inline_response_200_1_detector:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "[\"D1_DVA\"]"
+          xml:
+            attribute: true
+    scalalastData_data:
+      required:
+      - cnt
+      - occ
+      - spd
+      type: object
+      properties:
+        cnt:
+          type: integer
+        spd:
+          type: integer
+        occ:
+          type: integer
+        time_start:
+          type: string
+          description: Start of the measurement period as reported by SCALA.
+          example: "[\"2022-11-10 09:12:00\"]"
+        time_stop:
+          type: string
+          description: End of the measurement period as reported by SCALA.
+          example: "[\"2022-11-10 09:13:30\"]"
+      example:
+        time_start: "[\"2022-11-10 09:12:00\"]"
+        spd: 6
+        cnt: 0
+        time_stop: "[\"2022-11-10 09:13:30\"]"
+        occ: 1
+    scalalastData_detectors:
+      required:
+      - class
+      - data
+      - id
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Detector ID, contains both numeric ID from SCALA and traffic\
+            \ engineering ID from intersection plans, separated by '_'"
+          example: "[\"D1_DVA\"]"
+        class:
+          type: string
+          description: Detector class
+          example: "[\"ig\",\"area\"]"
+          enum:
+          - ig
+          - area
+        data:
+          $ref: '#/components/schemas/scalalastData_data'
+      example:
+        data:
+          time_start: "[\"2022-11-10 09:12:00\"]"
+          spd: 6
+          cnt: 0
+          time_stop: "[\"2022-11-10 09:13:30\"]"
+          occ: 1
+        id: "[\"D1_DVA\"]"
+        class: "[\"ig\",\"area\"]"
+    inline_response_200_1:
+      type: object
+      properties:
+        intersection:
+          type: array
+          items:
+            $ref: '#/components/schemas/inline_response_200_1_intersection'
+      xml:
+        name: endpoints
+    inline_response_200:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identifier of an intersection, in SCALA notation, i.e.  a\
+            \ string \"FD<<district>><<number>>\"."
+          example: "[\"FD5355\"]"
+        detectors:
+          type: array
+          description: "List of detector names for the intersection. Detectors  bear\
+            \ both SCALA id and traffic engineering mapping id, represented by a a\
+            \ string \"<<scala_id>>_<<traffic_map_id>>\""
+          items:
+            type: string
+            example: "[\"D1_DVA\",\"D2_DVB\",\"D3_DVA'\",\"D4_DVB'\"]"
+      example:
+        detectors:
+        - "[\"D1_DVA\",\"D2_DVB\",\"D3_DVA'\",\"D4_DVB'\"]"
+        - "[\"D1_DVA\",\"D2_DVB\",\"D3_DVA'\",\"D4_DVB'\"]"
+        id: "[\"FD5355\"]"
+    inline_response_200_2:
+      required:
+      - detectors
+      - id
+      type: object
+      properties:
+        id:
+          type: string
+          description: Intersection id
+          example: "[\"FD5355\"]"
+        timestamp:
+          type: string
+          description: Server time when this record has been written into the database.
+          example: "[\"2022-11-10 09:15:20\"]"
+        detectors:
+          type: array
+          items:
+            $ref: '#/components/schemas/scalalastData_detectors'
+      example:
+        detectors:
+        - data:
+            time_start: "[\"2022-11-10 09:12:00\"]"
+            spd: 6
+            cnt: 0
+            time_stop: "[\"2022-11-10 09:13:30\"]"
+            occ: 1
+          id: "[\"D1_DVA\"]"
+          class: "[\"ig\",\"area\"]"
+        - data:
+            time_start: "[\"2022-11-10 09:12:00\"]"
+            spd: 6
+            cnt: 0
+            time_stop: "[\"2022-11-10 09:13:30\"]"
+            occ: 1
+          id: "[\"D1_DVA\"]"
+          class: "[\"ig\",\"area\"]"
+        id: "[\"FD5355\"]"
+        timestamp: "[\"2022-11-10 09:15:20\"]"
+    inline_response_200_3:
+      required:
+      - detector_id
+      type: object
+      properties:
+        detector_id:
+          type: string
+          example: "[\"R5355J1\"]"
+      example:
+        detector_id: "[\"R5355J1\"]"
+    inline_response_200_4:
+      required:
+      - lineid
+      type: object
+      properties:
+        lineid:
+          type: string
+          description: Identifier of a PT line (numeric / alphanumeric).
+          example: "[\"18\",\"N31\"]"
+        vehicles:
+          $ref: '#/components/schemas/golemiolastData_vehicles'
+      example:
+        lineid: "[\"18\",\"N31\"]"
+        vehicles:
+          vehicleno: "[\"3214\",\"7256\"]"
+          latitude: 0.80082819046101150206595775671303272247314453125
+          time: "[\"2022-11-10 09:12:00\"]"
+          longitude: 6.02745618307040320615897144307382404804229736328125
+    inline_response_200_1_intersection:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "[\"FD5355\"]"
+          xml:
+            attribute: true
+        detector:
+          type: array
+          items:
+            $ref: '#/components/schemas/inline_response_200_1_detector'
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: X-Access-Token
+      in: header
+      x-apikeyInfoFunc: swagger_server.controllers.authorization_controller.check_api_key
+
